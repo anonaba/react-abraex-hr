@@ -1,0 +1,108 @@
+# This is an example Starter pipeline configuration
+# Use a skeleton to build, test and deploy using manual and parallel steps
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+# image: atlassian/default-image:2
+image: node:14.16.1
+
+pipelines:
+  default:
+    - step:
+        name: Setup
+        script:
+          - npx yarn
+          - npx yarn build
+  branches:
+    master: 
+      - step:
+          name: Deploy to Production
+          deployment: production
+          script:
+            - pipe: atlassian/sftp-deploy:0.5.7
+              variables:
+                USER: $FTP_USERNAME
+                PASSWORD: $FTP_PASSWORD
+                SERVER: $FTP_HOST
+                REMOTE_PATH: $REMOTE_PATH
+                DELETE_FLAG: 'false'
+                DEBUG: 'true'
+      - parallel:
+        - step:
+           name: Rebuild UI
+           script:
+              - pipe: atlassian/ssh-run:0.3.0
+                variables:
+                    SSH_USER: $FTP_USERNAME
+                    SERVER: $FTP_HOST
+                    COMMAND: $COMMAND
+    staging: 
+      - step:
+          name: Deploy to Staging
+          deployment: staging
+          script:
+            - pipe: atlassian/sftp-deploy:0.5.7
+              variables:
+                USER: $FTP_USERNAME
+                PASSWORD: $FTP_PASSWORD
+                SERVER: $FTP_HOST
+                REMOTE_PATH: $STAGING_REMOTE_PATH
+                DELETE_FLAG: 'false'
+                DEBUG: 'true'
+      - parallel:
+        - step:
+           name: Rebuild UI
+           script:
+              - pipe: atlassian/ssh-run:0.3.0
+                variables:
+                    SSH_USER: $FTP_USERNAME
+                    SERVER: $FTP_HOST
+                    COMMAND: $STAGING_COMMAND
+    develop:
+      - step:
+          name: Deploy
+          only:
+            - develop
+          script:
+            - npx yarn
+            - npx yarn build
+            - 
+    # - step:
+    #     name: "Deploy"
+    #     script:
+    #       - pipe: atlassian/firebase-deploy:1.0.0
+    #         variables:
+    #           KEY_FILE: "./dev-abraex-f0769a2ce02a.json"
+    #           FIREBASE_TOKEN: "1//0ePyGkwjQ6FwfCgYIARAAGA4SNwF-L9IrZ-GeEWynUg9dwkMkzHZm8HDUZoYAR_KpS4zKeaXX8QL2dFcbTf2HcH29nFMba0hy4EQ"
+    # PROJECT_ID: '<string>' # Optional.
+    # MESSAGE: '<string>' # Optional.
+    # EXTRA_ARGS: '<string>' # Optional.
+    # MULTI_SITES_CONFIG: '<json>' # Optional
+    # DEBUG: '<boolean>' # Optional.
+# - step:
+#     name: 'Deployment to Production'
+#     deployment: production
+#     trigger: 'manual'
+#     script:
+#       - echo "Your deployment to production script goes here..."
+
+#      - step:
+#          name: 'Lint'
+#          script:
+#            - echo "Your linting goes here..."
+#      - step:
+#          name: 'Security scan'
+#          script:
+#            - echo "Your security scan goes here..."
+
+# The following deployment steps will be executed for each pipeline run. To configure your steps and conditionally deploy see https://support.atlassian.com/bitbucket-cloud/docs/configure-bitbucket-pipelinesyml/
+#    - step:
+#        name: 'Deployment to Staging'
+#        deployment: staging
+#        script:
+#          - echo "Your deployment to staging script goes here..."
+#    - step:
+#        name: 'Deployment to Production'
+#        deployment: production
+#        trigger: 'manual'
+#        script:
+#          - echo "Your deployment to production script goes here..."
